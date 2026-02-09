@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFO-5144 Lab 01: Apply Physics to Rigid Body</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 900px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        .info {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        #gameCanvas {
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto;
+            cursor: pointer;
+            background: #ecf0f1;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.reset {
+            background: #e74c3c;
+        }
+
+        button.reset:hover {
+            background: #c0392b;
+        }
+
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .stats-label {
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .legend h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+            border: 1px solid #bdc3c7;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            #gameCanvas {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 INFO-5144 Lab 01: Apply Physics to Rigid Body</h1>
+        <p class="info">Professor: Priyank Bhatt | Student Implementation</p>
+
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div class="controls">
+            <button id="startBtn">Start Movement</button>
+            <button id="resetBtn" class="reset">Reset</button>
+        </div>
+
+        <div class="stats">
+            <div class="stats-row">
+                <span class="stats-label">Position:</span>
+                <span id="position">X: 0, Y: 0</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Velocity:</span>
+                <span id="velocity">VX: 0, VY: 0</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Direction:</span>
+                <span id="direction">down</span>
+            </div>
+            <div class="stats-row">
+                <span class="stats-label">Status:</span>
+                <span id="status">Ready (Click to start)</span>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>Legend:</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db;"></div>
+                <span>Player (Movable Rigid Body)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2c3e50;"></div>
+                <span>Boundaries (Static Rigid Bodies)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>Central Square (Static Rigid Body)</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="Physics.js"></script>
+    <script>
+        // Initialize the game
+        const canvas = document.getElementById('gameCanvas');
+        const physics = new Physics(canvas);
+
+        // Game loop variables
+        let lastTime = 0;
+        let animationId = null;
+
+        // Game loop
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+            lastTime = currentTime;
+
+            // Update physics (max delta to prevent large jumps)
+            physics.update(Math.min(deltaTime, 0.1));
+
+            // Render
+            physics.render();
+
+            // Update stats display
+            updateStats();
+
+            // Continue loop
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // Update stats display
+        function updateStats() {
+            const info = physics.getPlayerInfo();
+            document.getElementById('position').textContent = 
+                `X: ${Math.round(info.position.x)}, Y: ${Math.round(info.position.y)}`;
+            document.getElementById('velocity').textContent = 
+                `VX: ${Math.round(info.velocity.vx)}, VY: ${Math.round(info.velocity.vy)}`;
+            document.getElementById('direction').textContent = info.direction;
+            document.getElementById('status').textContent = 
+                info.isMoving ? 'Moving' : 'Ready (Click to start)';
+        }
+
+        // Event handlers
+        document.getElementById('startBtn').addEventListener('click', () => {
+            physics.startMovement();
+        });
+
+        canvas.addEventListener('click', () => {
+            physics.startMovement();
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            physics.startMovement();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            // Stop animation
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            // Recreate physics instance
+            const newPhysics = new Physics(canvas);
+            Object.assign(physics, newPhysics);
+
+            // Restart game loop
+            lastTime = performance.now();
+            animationId = requestAnimationFrame(gameLoop);
+        });
+
+        // Start the game loop
+        lastTime = performance.now();
+        gameLoop(lastTime);
+
+        // Initial render
+        physics.render();
+        updateStats();
+    </script>
+</body>
+</html>
